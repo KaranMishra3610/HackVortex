@@ -20,3 +20,16 @@ router.post("/verify", async (req, res) => {
     return res.status(500).json({ success: false, message: "Server Error" });
   }
 });
+
+// GET /api/auth/history/:user
+router.get("/history/:user", async (req, res) => {
+  const user = req.params.user.toLowerCase();
+
+  try {
+    const transactions = await Transaction.find({ user }).sort({ timestamp: -1 });
+    res.json(transactions);
+  } catch (err) {
+    console.error("Failed to fetch history:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+});
