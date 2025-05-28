@@ -1,10 +1,9 @@
 const mongoose = require("mongoose");
 
-const TxSchema = new mongoose.Schema({
+const transactionSchema = new mongoose.Schema({
   txId: String,
   user: String,
   signature: String,
-  timestamp: { type: Date, default: Date.now }
-});
+}, { timestamps: true }); // ✅ This adds createdAt and updatedAt
 
-module.exports = mongoose.model("Transaction", TxSchema);
+module.exports = mongoose.model("Transaction", transactionSchema);
