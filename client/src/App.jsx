@@ -2,12 +2,13 @@ import { useState } from "react";
 import { getContract } from "./utils/contractInteract";
 import { ethers } from "ethers";
 import axios from "axios";
-import './App.css';
+import "./App.css";
 
 function App() {
   const [txId, setTxId] = useState("");
   const [account, setAccount] = useState("");
   const [history, setHistory] = useState([]);
+  const [generating, setGenerating] = useState(false);
 
   const connectWallet = async () => {
     try {
@@ -15,7 +16,6 @@ function App() {
         alert("🦊 Please install MetaMask to use this feature.");
         return;
       }
-
       const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
       setAccount(accounts[0]);
       fetchHistory(accounts[0]);
@@ -31,6 +31,21 @@ function App() {
       setHistory(res.data);
     } catch (err) {
       alert("❌ Error fetching history: " + err.message);
+    }
+  };
+
+  const generateTxId = async () => {
+    try {
+      if (!account) return alert("🔗 Please connect your wallet first.");
+      setGenerating(true);
+      const res = await axios.post("http://localhost:5000/api/auth/generate", {
+        user: account,
+      });
+      setTxId(res.data.txId);
+    } catch (err) {
+      alert("❌ TxID Generation Error: " + err.message);
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -57,10 +72,11 @@ function App() {
       await axios.post("http://localhost:5000/api/auth/verify", {
         txId,
         user: account,
-        signature
+        signature,
       });
 
       alert("✅ Transaction approved and saved to database!");
+      setTxId("");
       fetchHistory();
     } catch (err) {
       alert("❌ Error: " + err.message);
@@ -68,48 +84,61 @@ function App() {
   };
 
   return (
-    <div className="container">
-      <div className="card fade-in">
-        <h1>🔐 Blockchain OTP Replacement</h1>
-        <button className="button connect-btn" onClick={connectWallet}>
-          {account ? `🔗 ${account.slice(0, 6)}...${account.slice(-4)}` : "Connect Wallet"}
-        </button>
-        <input
-          className="input"
-          type="text"
-          placeholder="Enter Transaction ID"
-          onChange={e => setTxId(e.target.value)}
-        />
-        <button className="button approve-btn" onClick={signAndApproveTx} disabled={!account || !txId}>
-          ✅ Authorize Transaction
-        </button>
-        <button className="button history-btn" onClick={fetchHistory} disabled={!account}>
-          📜 View History
-        </button>
-      </div>
-
-      {history.length > 0 && (
+    <div className="wrapper">
+      <div className="container">
         <div className="card fade-in">
-          <h3>📂 Authorization History</h3>
-          <ul className="history-list">
-            {history.map((tx, index) => (
-              <li key={index}>
-                <strong>{tx.txId}</strong><br />
-                <span>
-                  {new Date(tx.createdAt).toLocaleString('en-IN', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                  })}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <h1>SignChain</h1>
+          <p className="subtitle">Blockchain-Based OTP Replacement</p>
+
+          <button className="btn connect-btn" onClick={connectWallet}>
+            {account ? `🔗 ${account.slice(0, 6)}...${account.slice(-4)}` : "Connect Wallet"}
+          </button>
+
+          <button className="btn secondary-btn" onClick={generateTxId} disabled={!account || generating}>
+            ⚙️ {generating ? "Generating..." : "Generate TxID"}
+          </button>
+
+          <input
+            className="input"
+            type="text"
+            value={txId}
+            placeholder="Generated TxID will appear here"
+            readOnly
+          />
+
+          <button className="btn approve-btn" onClick={signAndApproveTx} disabled={!account || !txId}>
+            ✅ Authorize Transaction
+          </button>
+
+          <button className="btn secondary-btn" onClick={fetchHistory} disabled={!account}>
+            📜 View History
+          </button>
         </div>
-      )}
+
+        {history.length > 0 && (
+          <div className="card fade-in">
+            <h3>📂 Authorization History</h3>
+            <ul className="history-list">
+              {history.map((tx, index) => (
+                <li key={index}>
+                  <strong>{tx.txId}</strong>
+                  <br />
+                  <span>
+                    {new Date(tx.createdAt).toLocaleString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                    })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
