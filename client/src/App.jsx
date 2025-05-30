@@ -9,6 +9,7 @@ function App() {
   const [account, setAccount] = useState("");
   const [history, setHistory] = useState([]);
   const [generating, setGenerating] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const connectWallet = async () => {
     try {
@@ -16,11 +17,14 @@ function App() {
         alert("🦊 Please install MetaMask to use this feature.");
         return;
       }
+      setLoading(true);
       const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
       setAccount(accounts[0]);
       fetchHistory(accounts[0]);
     } catch (err) {
       alert("❌ Wallet connection failed: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -53,6 +57,7 @@ function App() {
     try {
       if (!window.ethereum) throw new Error("🦊 MetaMask not found. Please install MetaMask!");
 
+      setLoading(true);
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
 
@@ -80,62 +85,137 @@ function App() {
       fetchHistory();
     } catch (err) {
       alert("❌ Error: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyTxId = () => {
+    if (txId) {
+      navigator.clipboard.writeText(txId);
+      alert("📋 TxID copied to clipboard!");
     }
   };
 
   return (
     <div className="wrapper">
+      <div className="background-effects">
+        <div className="floating-shape shape-1"></div>
+        <div className="floating-shape shape-2"></div>
+        <div className="floating-shape shape-3"></div>
+      </div>
+      
       <div className="container">
-        <div className="card fade-in">
-          <h1>SignChain</h1>
-          <p className="subtitle">Blockchain-Based OTP Replacement</p>
+        <div className="main-card slide-up">
+          <div className="header-section">
+            <div className="logo-container">
+              <div className="logo-icon">🔐</div>
+              <h1 className="title">SignChain</h1>
+            </div>
+            <p className="subtitle">Next-Generation Blockchain Authentication</p>
+            <div className="status-indicator">
+              <div className={`status-dot ${account ? 'connected' : 'disconnected'}`}></div>
+              <span className="status-text">
+                {account ? 'Wallet Connected' : 'Wallet Disconnected'}
+              </span>
+            </div>
+          </div>
 
-          <button className="btn connect-btn" onClick={connectWallet}>
-            {account ? `🔗 ${account.slice(0, 6)}...${account.slice(-4)}` : "Connect Wallet"}
-          </button>
+          <div className="wallet-section">
+            <button 
+              className={`btn connect-btn ${loading ? 'loading' : ''}`} 
+              onClick={connectWallet}
+              disabled={loading}
+            >
+              <span className="btn-icon">🔗</span>
+              <span className="btn-text">
+                {loading ? "Connecting..." : account ? `${account.slice(0, 6)}...${account.slice(-4)}` : "Connect Wallet"}
+              </span>
+              {loading && <div className="spinner"></div>}
+            </button>
+          </div>
 
-          <button className="btn secondary-btn" onClick={generateTxId} disabled={!account || generating}>
-            ⚙️ {generating ? "Generating..." : "Generate TxID"}
-          </button>
+          <div className="action-section">
+            <button 
+              className={`btn generate-btn ${generating ? 'loading' : ''}`} 
+              onClick={generateTxId} 
+              disabled={!account || generating}
+            >
+              <span className="btn-icon">⚙️</span>
+              <span className="btn-text">
+                {generating ? "Generating..." : "Generate TxID"}
+              </span>
+              {generating && <div className="spinner"></div>}
+            </button>
 
-          <input
-            className="input"
-            type="text"
-            value={txId}
-            placeholder="Generated TxID will appear here"
-            readOnly
-          />
+            <div className="input-container">
+              <input
+                className="input txid-input"
+                type="text"
+                value={txId}
+                placeholder="Generated TxID will appear here..."
+                readOnly
+              />
+              {txId && (
+                <button className="copy-btn" onClick={copyTxId} title="Copy TxID">
+                  📋
+                </button>
+              )}
+            </div>
 
-          <button className="btn approve-btn" onClick={signAndApproveTx} disabled={!account || !txId}>
-            ✅ Authorize Transaction
-          </button>
+            <button 
+              className={`btn approve-btn ${loading ? 'loading' : ''}`} 
+              onClick={signAndApproveTx} 
+              disabled={!account || !txId || loading}
+            >
+              <span className="btn-icon">✅</span>
+              <span className="btn-text">Authorize Transaction</span>
+              {loading && <div className="spinner"></div>}
+            </button>
 
-          <button className="btn secondary-btn" onClick={fetchHistory} disabled={!account}>
-            📜 View History
-          </button>
+            <button 
+              className="btn history-btn" 
+              onClick={fetchHistory} 
+              disabled={!account}
+            >
+              <span className="btn-icon">📜</span>
+              <span className="btn-text">View History</span>
+            </button>
+          </div>
         </div>
 
         {history.length > 0 && (
-          <div className="card fade-in">
-            <h3>📂 Authorization History</h3>
-            <ul className="history-list">
+          <div className="history-card slide-up">
+            <div className="history-header">
+              <h3 className="history-title">
+                <span className="history-icon">📂</span>
+                Authorization History
+                <span className="history-count">({history.length})</span>
+              </h3>
+            </div>
+            <div className="history-content">
               {history.map((tx, index) => (
-                <li key={index}>
-                  <strong>{tx.txId}</strong>
-                  <br />
-                  <span>
-                    {new Date(tx.createdAt).toLocaleString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    })}
-                  </span>
-                </li>
+                <div key={index} className="history-item">
+                  <div className="history-item-header">
+                    <span className="tx-badge">TX</span>
+                    <strong className="tx-id">{tx.txId}</strong>
+                  </div>
+                  <div className="history-item-footer">
+                    <span className="timestamp">
+                      {new Date(tx.createdAt).toLocaleString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      })}
+                    </span>
+                    <span className="status-badge success">Verified</span>
+                  </div>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         )}
       </div>
